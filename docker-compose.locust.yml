@@ -1,0 +1,18 @@
+services:
+  locust:
+    image: locustio/locust
+    container_name: locust
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./locust:/mnt/locust
+    command: >
+      -f /mnt/locust/locustfile.py
+      --host=http://api:8000
+    networks:
+      - mlops-net
+
+networks:
+  mlops-net:
+    external: true
+    name: mlops_taller_locust_mlops-net

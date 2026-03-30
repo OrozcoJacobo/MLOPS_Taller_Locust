@@ -144,9 +144,7 @@ services:
   # 5. FastAPI  (servicio de inferencia)
   # ─────────────────────────────────────────────
   api:
-    build:
-      context: ./api
-      dockerfile: Dockerfile
+    image: orozcojacobo/penguins-inference:latest
     container_name: mlops-api
     restart: unless-stopped
     depends_on:
@@ -164,6 +162,7 @@ services:
       DB_NAME: mlops_db
       DB_USER: mlops
       DB_PASSWORD: mlops_secret
+      LOG_PREDICTIONS: "false"
     ports:
       - "8000:8000"
     networks:

@@ -31,6 +31,7 @@ logger = logging.getLogger("penguins-api")
 MLFLOW_URI   = os.environ.get("MLFLOW_TRACKING_URI", "http://mlflow:5000")
 MODEL_NAME   = "penguins-classifier"
 MODEL_STAGE  = "Production"
+LOG_PREDICTIONS = os.environ.get("LOG_PREDICTIONS", "false").lower() == "true"
 
 DB_HOST = os.environ.get("DB_HOST", "postgres")
 DB_PORT = os.environ.get("DB_PORT", "5432")
@@ -81,6 +82,7 @@ def load_model():
 async def lifespan(app: FastAPI):
     """Carga el modelo al iniciar la aplicación."""
     load_model()
+    logger.info(f"LOG_PREDICTIONS = {LOG_PREDICTIONS}")
     yield
 
 
@@ -305,8 +307,9 @@ def predict(input_data: PenguinInput):
             for i, p in enumerate(probas)
         }
 
-        # Guardar en PostgreSQL
-        log_prediction_to_db(input_data, pred_class, pred_label, confidence)
+        if LOG_PREDICTIONS:
+            # Guardar en PostgreSQL
+            log_prediction_to_db(input_data, pred_class, pred_label, confidence)
 
         return PredictionResponse(
             species=pred_label,
@@ -346,7 +349,8 @@ def predict_batch(request: BatchPredictionRequest):
             pred_label = LABEL_MAP[pred_class]
             confidence = float(probas.max())
 
-            log_prediction_to_db(inp, pred_class, pred_label, confidence)
+            if LOG_PREDICTIONS:
+                log_prediction_to_db(inp, pred_class, pred_label, confidence)
 
             results.append({
                 "index": i,

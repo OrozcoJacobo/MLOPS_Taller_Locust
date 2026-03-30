@@ -92,6 +92,67 @@ mlops-penguins/
 docker compose up -d
 ```
 
+
+#### ⚠️ Flujo obligatorio antes de usar la API
+
+> ⚠️ **IMPORTANTE:** La API de inferencia depende de un modelo previamente registrado en MLflow.
+> Si no se ejecuta este paso, la API responderá con error (`model_loaded: false` o `503`).
+
+##### Paso crítico: ejecutar Jupyter
+
+Antes de usar la API o Locust:
+
+1. Ir a:
+
+```
+http://localhost:8888
+```
+
+2. Abrir el notebook:
+
+```
+notebooks/penguins_mlflow.ipynb
+```
+
+
+3. Ejecutar TODAS las celdas en orden.
+
+##### ¿Qué hace este paso?
+
+Este proceso:
+
+- carga datos en PostgreSQL
+- entrena múltiples modelos
+- registra experimentos en MLflow
+- selecciona el mejor modelo
+- lo registra en **MLflow Model Registry**
+- lo mueve a stage **Production**
+
+👉 **Este paso es obligatorio para que la API funcione correctamente.**
+
+---
+
+## Verificación del modelo
+
+Después de ejecutar el notebook:
+
+1. Ir a:
+
+```
+http://localhost:5001
+```
+
+2. Verificar:
+- Existe el modelo `penguins-classifier`
+- Está en stage **Production**
+
+3. Validar en la API:
+
+
+```
+http://localhost:8000/docs
+```
+
 ### 2. Verificar el estado
 
 ```bash
@@ -288,6 +349,143 @@ GROUP BY predicted_species;
 ```
 
 ---
+
+## Pruebas de carga con Locust
+
+Para evaluar la capacidad de la API bajo carga concurrente, se utilizó **Locust**.
+
+---
+
+### Estructura utilizada
+
+Se creó un archivo adicional de orquestación:
+
+```
+docker-compose.locust.yml
+```
+
+Y una carpeta dedicada:
+
+
+### Levantar Locust
+
+```bash
+docker compose -f docker-compose.locust.yml up
+```
+
+```
+http://localhost:8089
+```
+
+```
+  locust/
+  └── locustfile.py
+```
+
+### Ejecución de Locust
+
+Una vez que todos los servicios del sistema están corriendo (docker compose up -d), se levanta Locust con:
+
+```bash
+docker compose -f docker-compose.locust.yml up
+```
+
+### Interfaz de usuario
+
+Acceder a la interfaz web de Locust en:
+
+```bash
+http://localhost:8089
+```
+
+### Configuración de pruebas
+
+En la interfaz de Locust se deben configurar los siguientes parámetros:
+
+1. Number of users: Número de usuarios concurrentes
+2. Ramp up: Velocidad de creación de usuarios (usuarios/segundo)
+3. Host: URL del servicio objetivo
+
+#### Prueba de validación inicial
+
+Antes de realizar pruebas de alta carga, se ejecutó una prueba controlada para verificar el correcto funcionamiento del sistema.
+
+1. Number of users: 2
+2. Ramp up: 2
+
+Esta prueba permitió validar:
+
+- correcta comunicación entre contenedores
+- correcto funcionamiento del endpoint /predict
+- ausencia de errores iniciales
+
+#### Métricas recolectadas
+
+Durante las pruebas se analizaron los siguientes indicadores:
+
+- RPS (Requests per second): número de solicitudes procesadas por segundo
+- Response Time: tiempo de respuesta promedio
+- Percentiles (95%, 99%): comportamiento bajo carga extrema
+- Failures (%): porcentaje de errores
+- Throughput: capacidad total del sistema
+
+#### Estrategia de experimentación
+
+Las pruebas de carga se realizaron de forma incremental, aumentando el número de usuarios concurrentes en intervalos de:
+
+- 10 usuarios
+- 100 usuarios
+- 500 usuarios
+- 1000 usuarios
+- 1500 usuarios
+- ...
+
+En cada experimento se registraron:
+
+- tiempo de respuesta
+- tasa de errores
+- estabilidad del sistema
+
+#### Experimentos
+
+##### Experimento 1: 10 usuarios
+
+- Users: 10
+- Ramp up: 2
+
+Resultados:
+
+- RPS: ~6.6
+- Tiempo promedio: ~18.9 ms
+- P95: ~37 ms
+- Fallos: 0%
+
+#### Análisis
+
+El sistema mostró un comportamiento completamente estable bajo baja carga.
+
+El tiempo de respuesta se mantuvo bajo (~19 ms en promedio), indicando que el modelo se encuentra correctamente cargado en memoria y que la inferencia es eficiente.
+
+No se presentaron errores ni degradación del servicio, lo que confirma que la arquitectura es funcional en condiciones de carga ligera.
+
+
+![E1LOAD](imagenes/Locust_E1_Load.png)
+![E1Stats](imagenes/Locust_E1_Statistics.png)
+![E1Charts](imagenes/Locust_E1_Charts.png)
+
+
+2. Experimento 2
+
+  - Users: 100
+  - Ramp up: 10
+
+3. Experimento 3
+
+  - Users: 500
+  - Ramp up: 50
+
+
+
 
 ## Flujo del notebook (20+ experimentos)
 
