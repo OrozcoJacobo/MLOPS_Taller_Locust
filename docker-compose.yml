@@ -145,7 +145,7 @@ services:
   # ─────────────────────────────────────────────
   api:
     image: orozcojacobo/penguins-inference:latest
-    container_name: mlops-api
+    container_name: mlops-api # Se comenta para las pruebas con mas instancias
     restart: unless-stopped
     depends_on:
       mlflow:
@@ -163,7 +163,9 @@ services:
       DB_USER: mlops
       DB_PASSWORD: mlops_secret
       LOG_PREDICTIONS: "false"
-    ports:
+    ports: # Se comenta para las pruebas con mas instancias
       - "8000:8000"
     networks:
       - mlops-net
+    mem_limit: 512m
+    cpus: 0.50
